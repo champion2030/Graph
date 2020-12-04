@@ -63,7 +63,6 @@ class WidgetPlot(QWidget):
         self.show_trees = QPushButton('Показать остовные деревья', self)
         self.show_trees.setFixedHeight(50)
 
-
         self.grid.setSpacing(20)
         self.grid.setColumnMinimumWidth(0, 200)
         self.grid.addWidget(self.do_matrix, 1, 0)
@@ -105,6 +104,8 @@ class WidgetPlot(QWidget):
 class PlotCanvas(FigureCanvas):
     matrix = None
     graph = None
+    l = []
+    changed = []
 
     def __init__(self):
         figure = plt.figure()
@@ -165,7 +166,6 @@ class PlotCanvas(FigureCanvas):
             self.graph.add_node(nodes)
             self.plot()
 
-
     def link_nodes(self, number1, number2):
         if number1 is not None and number2 is not None:
             user = User_Class()
@@ -174,12 +174,20 @@ class PlotCanvas(FigureCanvas):
                 change_matrix[number1][number2] = 1
                 change_matrix[number2][number1] = 1
                 user.take_matrix(change_matrix)
+                self.graph.add_edge(number1, number2)
+                self.plot()
             if user.get_identificator() == 2:
-                change_matrix[number1][number2] = 1
-                change_matrix[number2][number1] = 1
-                user.take_matrix(change_matrix)
-            self.graph.add_edge(number1, number2)
-            self.plot()
+                if change_matrix[number1][number2] == 1 or change_matrix[number2][number1] == 1:
+                    error_dialog = QMessageBox()
+                    error_dialog.setWindowTitle("Graph error")
+                    error_dialog.setText("Между этими вершинами уже есть дуга")
+                    error_dialog.setIcon(QMessageBox.Critical)
+                    error_dialog.exec_()
+                else:
+                    change_matrix[number1][number2] = 1
+                    user.take_matrix(change_matrix)
+                    self.graph.add_edge(number1, number2)
+                    self.plot()
 
     def open_matrix_enter(self):
         self.second = First_Widget()
@@ -211,9 +219,34 @@ class PlotCanvas(FigureCanvas):
         except OSError:
             return path[0:2] + "/graph_photos"
 
+    def find(self, key):
+        for j in range(len(self.changed[key])):
+            for i in range(len(self.l)):
+                if self.changed[key][j][0] == self.l[i][0] or self.changed[key][j][1] == self.l[i][0] or \
+                        self.changed[key][j][0] == self.l[i][1] or \
+                        self.changed[key][j][1] == self.l[i][1]:
+                    self.changed[key].append(self.l[i])
+                    self.l.pop(i)
+                    if j == len(self.changed[key]):
+                        return
+                    else:
+                        return self.find(key)
+
+    def clear_directory(self):
+        import os, shutil
+        folder = self.create_directory()
+        for the_file in os.listdir(folder):
+            file_path = os.path.join(folder, the_file)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+            except Exception as e:
+                print(e)
+
     def task(self):
         self.check_components()
         path = self.create_directory()
+        self.clear_directory()
         someFile = open(path[0:2] + "/results.txt", "w")
         user = User_Class()
         if user.get_identificator() == 3:
@@ -223,10 +256,69 @@ class PlotCanvas(FigureCanvas):
             error.setIcon(QMessageBox.Critical)
             error.exec_()
         elif self.check_components() != 1:
+            self.figure.clear()
+            k = self.graph.edges()
+            self.changed = [[] for k in range(self.check_components())]
+            for j in k:
+                self.l.append(list(j))
+            for n in range(self.check_components()):
+                if len(self.l) != 0:
+                    self.changed[n].append(self.l[n])
+                    self.l.pop(n)
+                    self.find(n)
+            while [] in self.changed:
+                self.changed.remove([])
+
+            v = 0
+            for i in range(len(self.changed)):
+                for j in range(len(self.changed[i])):
+                    self.changed[i][j] = tuple(self.changed[i][j])
+            for i in range(len(self.changed)):
+
+                tempGraph = nx.Graph()
+                tempGraph.add_edges_from(self.changed[i])
+                num = []
+                k = []
+                for i in combinations(self.changed[i], tempGraph.number_of_nodes() - 1):
+                    num.append(i)
+                for i in range(len(num)):
+                    k.append(list(num[i]))
+                for i in range(len(k)):
+                    if user.get_identificator() == 1:
+                        graph1 = nx.Graph()
+                        graph1.add_edges_from(k[i])
+                    else:
+                        graph1 = nx.DiGraph()
+                        graph1.add_edges_from(k[i])
+                    someFile.write("На рассмотрении граф с \nвершинами - " + str(graph1.nodes()) + "\n")
+                    someFile.write("рёбрами - " + str(graph1.edges()) + "\n")
+                    g = Graph(graph1.number_of_nodes())
+                    for j in range(len(k[i])):
+                        g.addEdge(k[i][j][0], k[i][j][1])
+                    if len(graph1.edges()) == graph1.number_of_nodes():
+                        someFile.write("Количество рёбер меньше или равно количеству вершин - не остов\n\n")
+                        pass
+                    elif g.isCyclic():
+                        someFile.write("Есть цикл - не остов\n\n")
+                        pass
+                    elif graph1.number_of_nodes() < tempGraph.number_of_nodes():
+                        pass
+                    else:
+                        someFile.write("Граф: \n")
+                        someFile.write("Вершины - " + str(graph1.nodes()) + "\n")
+                        someFile.write("Рёбра - " + str(graph1.edges()) + "\n")
+                        someFile.write("ОСТОВ\n\n")
+                        v += 1
+                        nx.draw_circular(graph1, with_labels=True, node_size=850)
+                        plt.savefig(path + '/Graph' + str(v) + '.jpg')
+                        self.figure.clear()
+            someFile.close()
+            self.plot()
+            self.create_video()
             error = QMessageBox()
-            error.setWindowTitle("Matrix error")
-            error.setText("Граф должен быть связный")
-            error.setIcon(QMessageBox.Critical)
+            error.setWindowTitle("Trees information")
+            error.setText("Все остовные деревья построены и лежат в " + path + "\nКол-во остовов: " + str(v))
+            error.setIcon(QMessageBox.Information)
             error.exec_()
         else:
             self.figure.clear()
@@ -234,7 +326,7 @@ class PlotCanvas(FigureCanvas):
             k = []
             if user.get_identificator() == 1:
                 l = self.graph.edges()
-                for i in combinations(l, self.graph.number_of_nodes()-1):
+                for i in combinations(l, self.graph.number_of_nodes() - 1):
                     num.append(i)
                 for i in range(len(num)):
                     k.append(list(num[i]))
@@ -242,18 +334,24 @@ class PlotCanvas(FigureCanvas):
                 for i in range(len(k)):
                     graph1 = nx.Graph()
                     graph1.add_edges_from(k[i])
+                    someFile.write("На рассмотрении граф с \nвершинами - " + str(graph1.nodes()) + "\n")
+                    someFile.write("рёбрами - " + str(graph1.edges()) + "\n")
                     g = Graph(graph1.number_of_nodes())
                     for j in range(len(k[i])):
                         g.addEdge(k[i][j][0], k[i][j][1])
                     if len(graph1.edges()) == graph1.number_of_nodes():
+                        someFile.write("Количество рёбер меньше или равно количеству вершин - не остов\n\n")
                         pass
                     elif g.isCyclic():
+                        someFile.write("Есть цикл - не остов\n\n")
                         pass
                     elif graph1.number_of_nodes() < self.graph.number_of_nodes():
                         pass
                     else:
+                        someFile.write("Граф: \n")
                         someFile.write("Вершины - " + str(graph1.nodes()) + "\n")
                         someFile.write("Рёбра - " + str(graph1.edges()) + "\n")
+                        someFile.write("ОСТОВ\n\n")
                         v += 1
                         nx.draw_circular(graph1, with_labels=True, node_size=850)
                         plt.savefig(path + '/Graph' + str(v) + '.jpg')
@@ -263,7 +361,7 @@ class PlotCanvas(FigureCanvas):
                 self.create_video()
                 error = QMessageBox()
                 error.setWindowTitle("Trees information")
-                error.setText("Все остовные деревья построены и лежат в " + path)
+                error.setText("Все остовные деревья построены и лежат в " + path + "\nКол-во остовов: " + str(v))
                 error.setIcon(QMessageBox.Information)
                 error.exec_()
             else:
@@ -276,18 +374,24 @@ class PlotCanvas(FigureCanvas):
                 for i in range(len(k)):
                     graph1 = nx.DiGraph()
                     graph1.add_edges_from(k[i])
+                    someFile.write("На рассмотрении граф с \nвершинами - " + str(graph1.nodes()) + "\n")
+                    someFile.write("рёбрами - " + str(graph1.edges()) + "\n")
                     g = Graph(graph1.number_of_nodes())
                     for j in range(len(k[i])):
                         g.addEdge(k[i][j][0], k[i][j][1])
                     if len(graph1.edges()) == graph1.number_of_nodes():
+                        someFile.write("Количество рёбер меньше или равно количеству вершин - не остов\n\n")
                         pass
                     elif g.isCyclic():
+                        someFile.write("Есть цикл - не остов\n\n")
                         pass
                     elif graph1.number_of_nodes() < self.graph.number_of_nodes():
                         pass
                     else:
+                        someFile.write("Граф: \n")
                         someFile.write("Вершины - " + str(graph1.nodes()) + "\n")
                         someFile.write("Рёбра - " + str(graph1.edges()) + "\n")
+                        someFile.write("ОСТОВ\n\n")
                         v += 1
                         nx.draw_circular(graph1, with_labels=True, node_size=850)
                         plt.savefig(path + '/Graph' + str(v) + '.jpg')
@@ -297,7 +401,7 @@ class PlotCanvas(FigureCanvas):
                 self.create_video()
                 error = QMessageBox()
                 error.setWindowTitle("Trees information")
-                error.setText("Все остовные деревья построены и лежат в " + path)
+                error.setText("Все остовные деревья построены и лежат в " + path + "\nКол-во остовов: " + str(v))
                 error.setIcon(QMessageBox.Information)
                 error.exec_()
 
@@ -331,13 +435,15 @@ class Graph:
     def __init__(self, vertices):
         self.V = vertices
         self.graph = defaultdict(list)
+
     def addEdge(self, v, w):
         self.graph[v].append(w)
         self.graph[w].append(v)
+
     def isCyclicUtil(self, v, visited, parent):
         visited[v] = True
         for i in self.graph[v]:
-            if i > len(visited)-1:
+            if i > len(visited) - 1:
                 return False
             if visited[i] == False:
                 if (self.isCyclicUtil(i, visited, v)):

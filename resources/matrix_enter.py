@@ -196,32 +196,13 @@ class First_Widget(QtWidgets.QWidget):
         if self.check_ravnobok_matrix():
             if self.check_isNumeric_matrix():
                 if self.check_main_diagonal():
-                    if self.check_correct_matrix(self.check_symmetric()):
-                        if self.check_symmetric() == "Yes":
-                            temp = User_Class()
-                            temp.take_matrix(self.numbers)
-                            temp.setIdentificator(1)
-                            self.close()
-                        elif self.check_symmetric_org():
-                            temp = User_Class()
-                            temp.take_matrix(self.numbers)
-                            temp.setIdentificator(2)
-                            self.close()
-
-    def check_correct_matrix(self, sim):
-        if sim == "Yes":
-            for i in range(len(self.numbers)):
-                count = 0
-                for j in range(len(self.numbers[i])):
-                    if self.numbers[i][j] == 0:
-                        count += 1
-                if count == len(self.numbers[i]):
-                    error = QMessageBox()
-                    error.setWindowTitle("Matrix error")
-                    error.setText("Вершина должна быть смежна хотя бы одной вершине")
-                    error.setIcon(QMessageBox.Critical)
-                    error.exec_()
-                    return False
-            return True
-        else:
-            return True
+                    if self.check_symmetric() == "Yes":
+                        temp = User_Class()
+                        temp.take_matrix(self.numbers)
+                        temp.setIdentificator(1)
+                        self.close()
+                    elif self.check_symmetric_org():
+                        temp = User_Class()
+                        temp.take_matrix(self.numbers)
+                        temp.setIdentificator(2)
+                        self.close()
