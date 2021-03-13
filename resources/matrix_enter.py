@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 
-from resources.User import User_Class
+from User import User_Class
 import numpy as np
 
 from PyQt5 import QtCore, QtGui, QtWidgets

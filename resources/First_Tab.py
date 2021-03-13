@@ -1,5 +1,4 @@
 import sys
-import PIL
 import cv2
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -8,8 +7,8 @@ from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QVBoxLayout, QHB
     QPushButton, QGridLayout, QInputDialog, QMessageBox
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from resources.matrix_enter import First_Widget
-from resources.User import User_Class
+from matrix_enter import First_Widget
+from User import User_Class
 import os
 from collections import defaultdict
 from itertools import *
@@ -255,6 +254,12 @@ class PlotCanvas(FigureCanvas):
             error.setText("Сначало нунжно ввести граф")
             error.setIcon(QMessageBox.Critical)
             error.exec_()
+        elif len(self.graph.edges()) == 0:
+            error = QMessageBox()
+            error.setWindowTitle("Matrix error")
+            error.setText("В графе нет рёбер")
+            error.setIcon(QMessageBox.Critical)
+            error.exec_()
         elif self.check_components() != 1:
             self.figure.clear()
             k = self.graph.edges()
@@ -268,13 +273,14 @@ class PlotCanvas(FigureCanvas):
                     self.find(n)
             while [] in self.changed:
                 self.changed.remove([])
-
-            v = 0
+            m = 0
+            z = ""
             for i in range(len(self.changed)):
                 for j in range(len(self.changed[i])):
                     self.changed[i][j] = tuple(self.changed[i][j])
             for i in range(len(self.changed)):
-
+                v = 0
+                m = m + 1
                 tempGraph = nx.Graph()
                 tempGraph.add_edges_from(self.changed[i])
                 num = []
@@ -312,12 +318,13 @@ class PlotCanvas(FigureCanvas):
                         nx.draw_circular(graph1, with_labels=True, node_size=850)
                         plt.savefig(path + '/Graph' + str(v) + '.jpg')
                         self.figure.clear()
+                z = z + " \n" + "Подграф " + str(m) + " имеет: " + str(v) + " остовов"
             someFile.close()
             self.plot()
             self.create_video()
             error = QMessageBox()
             error.setWindowTitle("Trees information")
-            error.setText("Все остовные деревья построены и лежат в " + path + "\nКол-во остовов: " + str(v))
+            error.setText("Все остовные деревья построены и лежат в " + path + "\n" + z)
             error.setIcon(QMessageBox.Information)
             error.exec_()
         else:
@@ -405,6 +412,7 @@ class PlotCanvas(FigureCanvas):
                 error.setIcon(QMessageBox.Information)
                 error.exec_()
 
+
     def create_video(self):
         image_folder = self.create_directory()
         video_name = image_folder + '/video.avi'
@@ -429,7 +437,6 @@ class PlotCanvas(FigureCanvas):
             error.setText("Вы ещё не построили деревьев")
             error.setIcon(QMessageBox.Information)
             error.exec_()
-
 
 class Graph:
     def __init__(self, vertices):
